@@ -3,8 +3,8 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use App\Models\SubscriptionPlan;
 
 class DatabaseSeeder extends Seeder
 {
@@ -13,11 +13,26 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        SubscriptionPlan::create([
+            'name' => 'Plan Simple',
+            'description' => 'Acceso a funciones básicas',
+            'price' => 9.99,
+            'billing_cycle' => 'MONTHLY',
+            'paypal_plan_id' => 'P-XXXXXXXXXXXXX' // ID real de PayPal
+        ]);
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        SubscriptionPlan::create([
+            'name' => 'Plan VIP',
+            'description' => 'Acceso a todas las funciones',
+            'price' => 19.99,
+            'billing_cycle' => 'MONTHLY',
+            'paypal_plan_id' => 'P-YYYYYYYYYYYYY' // ID real de PayPal
+        ]);
+
+        User::create([
+            'name' => 'Admin',
+            'email' => 'admin@local.dev',
+            'password' => bcrypt('asd123..'),
         ]);
     }
 }
