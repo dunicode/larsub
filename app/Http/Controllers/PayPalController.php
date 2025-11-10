@@ -59,6 +59,56 @@ class PayPalController extends Controller
         }
     }
 
+    public function cancelSubscription(Request $request, $subscriptionId)
+    {
+        try {
+            // Buscar la suscripción en la base de datos
+            $subscription = Subscription::where('paypal_subscription_id', $subscriptionId)
+                ->where('user_id', auth()->id())
+                ->firstOrFail();
+
+            $client = new \GuzzleHttp\Client();
+            $url = env("PAYPAL_MODE") == 'sandbox' 
+                ? "https://api-m.sandbox.paypal.com/v1/billing/subscriptions/{$subscriptionId}/cancel"
+                : "https://api-m.paypal.com/v1/billing/subscriptions/{$subscriptionId}/cancel";
+
+            // Cancelar en PayPal
+            $response = $client->post($url, [
+                'headers' => [
+                    'Content-Type' => 'application/json',
+                    'Authorization' => 'Basic ' . base64_encode(
+                        env("PAYPAL_CLIENT_ID") . ':' . env("PAYPAL_SECRET_ID")
+                    )
+                ],
+                'json' => [
+                    'reason' => $request->input('reason', 'Usuario solicitó cancelación')
+                ]
+            ]);
+
+            // Actualizar en base de datos
+            $subscription->update([
+                'status' => 'CANCELLED',
+                'ends_at' => now(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Suscripción cancelada correctamente'
+            ]);
+
+        } catch (\GuzzleHttp\Exception\ClientException $e) {
+            $error = json_decode($e->getResponse()->getBody()->getContents(), true);
+            return response()->json([
+                'error' => $error['message'] ?? 'Error al cancelar la suscripción en PayPal'
+            ], 400);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Error al cancelar la suscripción: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function handleWebhook(Request $request)
     {
         $webhookId = 'tu_webhook_id'; // Configurar en PayPal Developer
@@ -125,6 +175,20 @@ class PayPalController extends Controller
         }
     }
 
+    private function cancelSubscriptionByWebhook($resource)
+    {
+        $subscription = Subscription::where('paypal_subscription_id', $resource['id'])->first();
+        if ($subscription) {
+            $subscription->update([
+                'status' => 'CANCELLED',
+                'ends_at' => now(),
+            ]);
+            
+            // Aquí puedes agregar lógica adicional como enviar email, etc.
+            \Log::info("Suscripción cancelada via webhook: {$resource['id']}");
+        }
+    }
+
     public function activateSubscription($resource)
     {
         $subscription = Subscription::where('paypal_subscription_id', $resource['id'])->first();
@@ -146,14 +210,14 @@ class PayPalController extends Controller
             'user_id' => auth()->id(),
             'subscription_plan_id' => 1, // O obtener del contexto
             'paypal_subscription_id' => $subscriptionId,
-            'status' => 'PENDING',
+            'status' => 'ACTIVE',
             'starts_at' => now(),
         ]);
 
         return view('subscriptions.success');
     }
 
-    public function subscriptionCancel()
+    public function subscriptionCancel(Request $request)
     {
         return view('subscriptions.cancel');
     }

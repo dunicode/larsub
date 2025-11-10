@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\SubscriptionPlan;
+use App\Models\Subscription;
 
 class SubscriptionController extends Controller
 {
@@ -12,9 +13,15 @@ class SubscriptionController extends Controller
         $this->middleware('auth');
     }
     
-    public function index()
+    public function plans()
     {
         $plans = SubscriptionPlan::where('is_active', true)->get();
-        return view('subscriptions.index', compact('plans'));
+        return view('subscriptions.plans', compact('plans'));
+    }
+
+    public function list()
+    {
+        $subscriptions = Subscription::where("user_id", auth()->user()->id)->get();
+        return view('subscriptions.list', ["subscriptions"=> $subscriptions]);
     }
 }
